@@ -32,36 +32,35 @@ class Paste {
 		return file_get_contents(static::get_filename($file));
 	}
 
-    public static function get_filename($file, $new_paste = false, $folder_only = false) {
-        $folder = Config::path('pastes') . substr($file, 0, 2) . '/' . substr($file, 2, 2) . '/';
-        $fname  = $folder . $file . '.txt';
-        if ($new_paste === true)
-            return $fname;
+	public static function get_filename($file, $new_paste = false, $folder_only = false) {
+		$folder = Config::path('pastes').substr($file, 0, 2).'/'.substr($file, 2, 2).'/';
+		$fname  = $folder.$file.'.txt';
 
-        if ($folder_only === true)
-            return $folder;
+		if($new_paste === true)
+			return $fname;
 
-        if (file_exists($fname))
-            return $fname;
-        elseif (file_exists(Config::path('pastes').$file.'.txt'))
-            return Config::path('pastes').$file.'.txt';
-        else
-            return false;
-    }
+		if($folder_only === true)
+			return $folder;
+
+		if(file_exists($fname))
+			return $fname;
+		elseif(file_exists(Config::path('pastes').$file.'.txt'))
+			return Config::path('pastes').$file.'.txt';
+		else return false;
+	}
 
 	public static function save($text, $parent = '', $hidden = false) {
 		if(trim($text) == false)
 			return false;
 
 		$date   = date('c');
-		$parent = (preg_match('#^'.Bob::$patterns['paste'].'$#', $value) == 1) ? $parent : '';
+		$parent = (preg_match('#^'.Bob::$patterns['paste'].'$#', $parent) == 1) ? $parent : '';
 		$key    = static::generate_key();
 		$file   = static::generate_key();
 		$hidden = ($hidden) ? 'true' : 'false';
 
-		do {
-			$token = static::generate_key();
-		} while(static::get($token));
+		do $token = static::generate_key();
+		while(static::get($token));
 
 		if($parent != '' and $parent_arr = static::get($parent))
 			if(md5($text) == md5(static::get_text($parent_arr['file'])))
@@ -69,12 +68,17 @@ class Paste {
 
 		if($result = Config::$db->prepare('INSERT INTO `'.Config::$table.'` (`date`, `token`, `key`, `parent`, `hidden`, `file`) VALUES(:date, :token, :key, :parent, :hidden, :file)'))
 			if($res = $result->execute([':date' => $date, ':token' => $token, ':key' => $key, ':parent' => $parent, ':hidden' => $hidden, ':file' => $file]))
-                if(!file_exists(static::get_filename($file, false, true)))
-                    mkdir(static::get_filename($file, false, true), 0700, true);
-				if($put = file_put_contents(static::get_filename($file, true), $text))
+				if(static::write_file($file, $text))
 					return $token;
 
 		return false;
+	}
+
+	private static function write_file($file, $text) {
+		if(!file_exists(static::get_filename($file, false, true)))
+			mkdir(static::get_filename($file, false, true), 0700, true);
+
+		return (file_put_contents(static::get_filename($file, true), $text) !== false);
 	}
 
 	public static function delete($token, $key) {
